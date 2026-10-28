@@ -117,11 +117,15 @@
                             <span>🎯</span> Моя геолокация
                         </button>
                     </div>
-                    <div id="ymap" class="relative"></div>
-                    <!-- Поле вывода определенного адреса -->
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
-                        <span class="text-slate-400">📍</span>
-                        <input type="text" id="address-input" name="address" readonly placeholder="Адрес подтянется автоматически..." class="bg-transparent w-full font-medium text-slate-700 focus:outline-none">
+                    <div id="ymap" class="relative mb-2"></div>
+                    
+                    <!-- Ручной ввод адреса (теперь редактируемый!) -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Адрес или ориентир (можно изменить)</label>
+                        <div class="bg-white p-1 rounded-xl border border-slate-200 flex items-center gap-2">
+                            <span class="text-slate-400 pl-2">📍</span>
+                            <input type="text" id="address-input" name="address" required placeholder="Например: Москва, ул. Арбат, 10" class="bg-transparent w-full text-sm py-2 text-slate-800 focus:outline-none">
+                        </div>
                     </div>
                 </div>
 
@@ -249,19 +253,16 @@
                         placemark = new ymaps.Placemark(pickerMap.getCenter(), {}, { draggable: true });
                         pickerMap.geoObjects.add(placemark);
 
-                        // При клике по карте перемещаем метку и получаем адрес
                         pickerMap.events.add('click', function (e) {
                             let coords = e.get('coords');
                             updatePlacemarkPosition(coords);
                         });
 
-                        // При перетаскивании метки получаем адрес
                         placemark.geometry.events.add('dragend', function () {
                             let coords = placemark.geometry.getCoordinates();
                             updatePlacemarkPosition(coords);
                         });
 
-                        // Первоначальное получение адреса
                         getAddressByCoords(pickerMap.getCenter());
                     });
                 } else {
@@ -276,26 +277,20 @@
             getAddressByCoords(coords);
         }
 
-        // Автоматическое геокодирование: координаты -> адрес
         function getAddressByCoords(coords) {
-            document.getElementById('address-input').value = 'Определяем адрес...';
             ymaps.geocode(coords).then(function (res) {
                 let firstGeoObject = res.geoObjects.get(0);
                 if (firstGeoObject) {
                     let address = firstGeoObject.getAddressLine();
                     document.getElementById('address-input').value = address;
-                } else {
-                    document.getElementById('address-input').value = 'Адрес не найден';
                 }
             }).catch(() => {
-                document.getElementById('address-input').value = 'Адрес по координатам';
+                // Если геокодер недоступен — оставляем поле готовым для ручного ввода, не ломая интерфейс
             });
         }
 
-        // Определение геолокации через GPS смартфона
         function locateUser() {
             if (navigator.geolocation) {
-                document.getElementById('address-input').value = 'Получаем геолокацию GPS...';
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const coords = [position.coords.latitude, position.coords.longitude];
@@ -303,8 +298,7 @@
                         updatePlacemarkPosition(coords);
                     },
                     (error) => {
-                        alert('Не удалось определить местоположение. Пожалуйста, разрешите доступ к геолокации в браузере.');
-                        document.getElementById('address-input').value = '';
+                        alert('Не удалось определить местоположение. Проверьте разрешения геолокации.');
                     },
                     { enableHighAccuracy: true }
                 );
