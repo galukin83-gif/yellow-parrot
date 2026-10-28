@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Жёлтый попугай — Поиск вещей и животных</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- API Яндекс.Карт -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_api_ключ&lang=ru_RU" type="text/javascript"></script>
+    <style>
+        .custom-card { transition: all 0.2s ease; }
+        .custom-card:active { transform: scale(0.98); }
+        #ymap { width: 100%; height: 220px; border-radius: 0.75rem; }
+    </style>
+</head>
+<body class="bg-amber-50/50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Шапка -->
+    <header class="bg-amber-400 text-slate-900 shadow-md sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">🦜</span>
+                <h1 class="font-bold text-lg tracking-tight">Жёлтый попугай</h1>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="switchTab('feed')" id="btn-feed" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white transition shadow-sm">Лента</button>
+                <button onclick="switchTab('favorites')" id="btn-favorites" class="px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-amber-300 transition text-slate-700">⭐</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 pb-24 space-y-4">
+
+        <!-- Вкладка: Лента -->
+        <div id="tab-feed" class="space-y-4">
+            <!-- Фильтры -->
+            <div class="flex gap-2 overflow-x-auto pb-1 text-sm">
+                <button onclick="filterFeed('all')" class="filter-btn px-3 py-1 rounded-full bg-amber-500 text-white font-medium whitespace-nowrap">Все</button>
+                <button onclick="filterFeed('lost')" class="filter-btn px-3 py-1 rounded-full bg-white text-slate-600 border border-slate-200 whitespace-nowrap">🔴 Потери</button>
+                <button onclick="filterFeed('found')" class="filter-btn px-3 py-1 rounded-full bg-white text-slate-600 border border-slate-200 whitespace-nowrap">🟢 Находки</button>
+                <button onclick="filterFeed('animal')" class="filter-btn px-3 py-1 rounded-full bg-white text-slate-600 border border-slate-200 whitespace-nowrap">🐾 Животные</button>
+                <button onclick="filterFeed('item')" class="filter-btn px-3 py-1 rounded-full bg-white text-slate-600 border border-slate-200 whitespace-nowrap">🎒 Вещи</button>
+            </div>
+            <div id="feed-list" class="space-y-3">
+                <!-- Карточки -->
+            </div>
+        </div>
+
+        <!-- Вкладка: Избранное -->
+        <div id="tab-favorites" class="hidden space-y-4">
+            <h2 class="font-bold text-lg text-slate-700">Избранные объявления</h2>
+            <div id="favorites-list" class="space-y-3">
+                <!-- Избранное -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Нижняя панель действий -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur border-t border-amber-100 p-3 z-50">
+        <div class="max-w-4xl mx-auto flex justify-around">
+            <button onclick="openModal()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+                <span>➕</span>
+                <span>Подать объявление</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Модальное окно создания объявления -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-2xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-800">Новое объявление</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">✕</button>
+            </div>
+            
+            <form id="ad-form" onsubmit="handleFormSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Тип события</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="border rounded-xl p-3 flex items-center justify-center cursor-pointer hover:bg-amber-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+                            <input type="radio" name="type" value="lost" required class="hidden">
+                            <span class="text-red-600 font-medium text-sm">🔴 Потерял</span>
+                        </label>
+                        <label class="border rounded-xl p-3 flex items-center justify-center cursor-pointer hover:bg-amber-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
+                            <input type="radio" name="type" value="found" required class="hidden">
+                            <span class="text-emerald-600 font-medium text-sm">🟢 Нашёл</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Категория</label>
+                    <select name="category" class="w-full border rounded-xl p-3 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                        <option value="animal">🐾 Животное</option>
+                        <option value="item">🎒 Вещь / Документы</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Заголовок</label>
+                    <input type="text" name="title" required placeholder="Например: Рыжий кот, у районной больницы" class="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Описание (до 200 символов)</label>
+                    <textarea name="description" maxlength="200" rows="3" placeholder="Особые приметы, где видели..." class="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Укажите место на Яндекс.Карте</label>
+                    <p class="text-xs text-slate-400 mb-1">Кликните по карте, чтобы поставить метку</p>
+                    <div id="ymap"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Контакты для связи</label>
+                    <input type="text" name="contacts" required placeholder="Телефон или Telegram (@username)" class="w-full border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                </div>
+
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl shadow transition">Опубликовать</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let ads = JSON.parse(localStorage.getItem('yellow_parrot_ads')) || [
+            { id: 1, type: 'lost', category: 'animal', title: 'Собака, спаниель', description: 'Убежал в парке Коломенское, ошейник синий.', contacts: '@pet_owner_msk', date: 'Сегодня' },
+            { id: 2, type: 'found', category: 'item', title: 'Связка ключей с брелоком', description: 'Найдена на лавочке у метро Таганская.', contacts: '+7 999 000-00-00', date: 'Вчера' }
+        ];
+
+        let favorites = JSON.parse(localStorage.getItem('yellow_parrot_fav')) || [];
+        let currentFilter = 'all';
+        let pickerMap = null, selectedCoords = [55.751244, 37.618423];
+
+        function switchTab(tab) {
+            document.getElementById('tab-feed').classList.add('hidden');
+            document.getElementById('tab-favorites').classList.add('hidden');
+
+            document.getElementById('btn-feed').className = 'px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-amber-300 transition text-slate-700';
+            document.getElementById('btn-favorites').className = 'px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-amber-300 transition text-slate-700';
+
+            if (tab === 'feed') {
+                document.getElementById('tab-feed').classList.remove('hidden');
+                document.getElementById('btn-feed').className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white transition shadow-sm';
+                renderFeed();
+            } else if (tab === 'favorites') {
+                document.getElementById('tab-favorites').classList.remove('hidden');
+                document.getElementById('btn-favorites').className = 'px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white transition shadow-sm';
+                renderFavorites();
+            }
+        }
+
+        function filterFeed(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = 'filter-btn px-3 py-1 rounded-full bg-white text-slate-600 border border-slate-200 whitespace-nowrap';
+            });
+            event.target.className = 'filter-btn px-3 py-1 rounded-full bg-amber-500 text-white font-medium whitespace-nowrap';
+            renderFeed();
+        }
+
+        function renderFeed() {
+            const container = document.getElementById('feed-list');
+            let filtered = ads;
+            if (currentFilter === 'lost') filtered = ads.filter(a => a.type === 'lost');
+            if (currentFilter === 'found') filtered = ads.filter(a => a.type === 'found');
+            if (currentFilter === 'animal') filtered = ads.filter(a => a.category === 'animal');
+            if (currentFilter === 'item') filtered = ads.filter(a => a.category === 'item');
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-8">Объявлений пока нет</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(ad => createCardHtml(ad)).join('');
+        }
+
+        function renderFavorites() {
+            const container = document.getElementById('favorites-list');
+            const filtered = ads.filter(a => favorites.includes(a.id));
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-center text-slate-400 py-8">В избранном пока пусто</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(ad => createCardHtml(ad)).join('');
+        }
+
+        function createCardHtml(ad) {
+            const isFav = favorites.includes(ad.id);
+            const badgeBg = ad.type === 'lost' ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700';
+            const badgeText = ad.type === 'lost' ? '🔴 Потерял' : '🟢 Нашёл';
+
+            return `
+                <div class="custom-card bg-white p-4 rounded-2xl shadow-sm border border-slate-100 relative space-y-2">
+                    <div class="flex justify-between items-start">
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-md ${badgeBg}">${badgeText}</span>
+                        <button onclick="toggleFavorite(${ad.id})" class="text-xl p-1">${isFav ? '⭐' : '☆'}</button>
+                    </div>
+                    <h3 class="font-bold text-base text-slate-800">${ad.title}</h3>
+                    <p class="text-sm text-slate-600">${ad.description}</p>
+                    <div class="flex justify-between items-center pt-2 border-t text-xs text-slate-500">
+                        <span class="font-semibold text-amber-600">📞 ${ad.contacts}</span>
+                        <span>📍 Москва · ${ad.date}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleFavorite(id) {
+            if (favorites.includes(id)) {
+                favorites = favorites.filter(f => f !== id);
+            } else {
+                favorites.push(id);
+            }
+            localStorage.setItem('yellow_parrot_fav', JSON.stringify(favorites));
+            renderFeed();
+            if (!document.getElementById('tab-favorites').classList.contains('hidden')) {
+                renderFavorites();
+            }
+        }
+
+        function openModal() {
+            document.getElementById('modal').classList.remove('hidden');
+            setTimeout(() => {
+                if (!pickerMap) {
+                    ymaps.ready(() => {
+                        pickerMap = new ymaps.Map("ymap", {
+                            center: [55.751244, 37.618423],
+                            zoom: 11,
+                            controls: ['zoomControl']
+                        });
+
+                        let placemark = new ymaps.Placemark(pickerMap.getCenter(), {}, { draggable: true });
+                        pickerMap.geoObjects.add(placemark);
+
+                        pickerMap.events.add('click', function (e) {
+                            let coords = e.get('coords');
+                            placemark.geometry.setCoordinates(coords);
+                            selectedCoords = coords;
+                        });
+
+                        placemark.geometry.events.add('positionchange', function () {
+                            selectedCoords = placemark.geometry.getCoordinates();
+                        });
+                    });
+                } else {
+                    pickerMap.container.fitToViewport();
+                }
+            }, 200);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+
+            const newAd = {
+                id: Date.now(),
+                type: formData.get('type'),
+                category: formData.get('category'),
+                title: formData.get('title'),
+                description: formData.get('description'),
+                contacts: formData.get('contacts'),
+                lat: selectedCoords[0],
+                lng: selectedCoords[1],
+                date: 'Только что'
+            };
+
+            ads.unshift(newAd);
+            localStorage.setItem('yellow_parrot_ads', JSON.stringify(ads));
+            
+            event.target.reset();
+            closeModal();
+            renderFeed();
+        }
+
+        window.onload = function() {
+            switchTab('feed');
+        };
+    </script>
+</body>
+</html>
